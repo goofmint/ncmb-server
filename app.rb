@@ -14,7 +14,6 @@ end
 
 post '/sign' do
   response.headers['Access-Control-Allow-Origin'] = '*'
-  response.headers['Access-Control-Allow-Headers'] = 'X-NCMB-Timestamp'
   content_type :json
   CLIENT_KEY = '65c3eb97f9fe9e90bba279611d405121ddc1ea9beaea92ea77ee7ceb02b91247'
   json = JSON.parse(request.body.read)
