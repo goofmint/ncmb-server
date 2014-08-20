@@ -9,7 +9,7 @@ set :public_folder, Proc.new { File.join(root, "public") }
 
 options '/*' do
   response.headers['Access-Control-Allow-Origin'] = '*'
-  response.headers['Access-Control-Allow-Headers'] = '*'
+  response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 end
 
 post '/sign' do
