@@ -9,10 +9,12 @@ set :public_folder, Proc.new { File.join(root, "public") }
 
 options '/*' do
   response.headers['Access-Control-Allow-Origin'] = '*'
+  response.headers['Access-Control-Allow-Headers'] = '*'
 end
 
 post '/sign' do
   response.headers['Access-Control-Allow-Origin'] = '*'
+  response.headers['Access-Control-Allow-Headers'] = '*'
   content_type :json
   CLIENT_KEY = '65c3eb97f9fe9e90bba279611d405121ddc1ea9beaea92ea77ee7ceb02b91247'
   json = JSON.parse(request.body.read)
