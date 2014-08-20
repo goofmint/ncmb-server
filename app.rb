@@ -9,7 +9,7 @@ set :public_folder, Proc.new { File.join(root, "public") }
 
 options '/*' do
   response.headers['Access-Control-Allow-Origin'] = '*'
-  response.headers['Access-Control-Allow-Headers'] = 'X-NCMB-Timestamp'
+  response.headers['Access-Control-Allow-Headers'] = '*'
 end
 
 post '/sign' do
