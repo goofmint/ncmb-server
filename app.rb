@@ -7,14 +7,8 @@ require 'json'
 set :root, File.dirname(__FILE__)
 set :public_folder, Proc.new { File.join(root, "public") }
 
-use Rack::Cors do
-  allow do
-    origins '*'
-    resource '/*', headers: :any
-  end
-end
-# preflight
 options '/*' do
+  response.headers['Access-Control-Allow-Origin'] = '*'
 end
 
 post '/sign' do
