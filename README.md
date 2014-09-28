@@ -14,5 +14,5 @@
 <script>
 var HEROKU_URL = "HEROKU_SERVER";
 </script>
-<script src="HEROKU_SERVER/javascripts/ncmb.js"></script>
+<script src="HEROKU_SERVER/ncmb.js"></script>
 ```
