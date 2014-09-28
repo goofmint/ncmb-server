@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 require 'sinatra'
 require 'sinatra/reloader'
 require 'openssl'
@@ -15,7 +14,7 @@ end
 post '/sign' do
   response.headers['Access-Control-Allow-Origin'] = '*'
   content_type :json
-  CLIENT_KEY = '65c3eb97f9fe9e90bba279611d405121ddc1ea9beaea92ea77ee7ceb02b91247'
+  CLIENT_KEY = ENV['CLIENT_KEY']
   json = JSON.parse(request.body.read)
   {signature: Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha256'), CLIENT_KEY, json["forEncodeString"])).strip()}.to_json
 end

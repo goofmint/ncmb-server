@@ -1,0 +1,9 @@
+{
+    "name": "NCMB Sign server",
+    "description": "ニフティクラウド mobile backendの署名を行うサーバです。",
+    "repository": "https://github.com/moongift/ncmb-server",
+    "keywords": ["Sinatra", "Ruby", "PaaS", "mBaaS"],
+    "env": {
+	"CLIENT_KEY": "change_me"
+    }
+}

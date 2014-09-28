@@ -1,7 +1,7 @@
 /*!
  * NCMB JavaScript SDK
- * Version: 1.2.1
- * Build: 16.4.2014
+ * Version: 1.2.2
+ * Build: 7.8.2014
  * http://www.nifty.com
  *
  * Copyright (c) 2014, NIFTY Corporation. All rights reserved.
@@ -36,7 +36,7 @@
 
 (function(root) {
   root.NCMB = root.NCMB || {};
-  root.NCMB.VERSION = "js.1.2.1";
+  root.NCMB.VERSION = "js.1.2.2";
 }(this));
 
 //********************************************** UNDERSCORE *********************************************************//
@@ -1683,7 +1683,7 @@ var CryptoJS = CryptoJS || function (h, i) {
   // 空のクラスのコンストラクター、プロトタイプチェイン作成を補助するため。
   var EmptyConstructor = function() {};
 
-  // サブクラスのプロトタイプチェインを設定するためヘルパーサービス。
+  // サブクラスのプロトタイプチェインを設定するためのヘルパーサービス。
   // `goog.inherits`と似ており、プロトタイプとクラスの属性のハッシュを使って、エクステンドさせる。
   var inherits = function(parent, protoProps, staticProps) {
     var child;
@@ -1728,7 +1728,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
   // Set the server for NCMB to talk to. //APIサーバーURL設定
   NCMB.serverURL = "https://mb.api.cloud.nifty.com/2013-09-01/"; 
-
+  
   /**
    * 認証トークンを設定する。コントロールパネルから認証キーを取得してください。
    * @param {String} applicationKey アプリケーションキー。
@@ -1749,8 +1749,8 @@ var CryptoJS = CryptoJS || function (h, i) {
   };
 
   /**
-   * Local storage　ロカールストレージ利用のため
-   * NCMBのインスタンスのロカールストレージのプリフィクスprefixを取得。
+   * Local storage　ローカルストレージ利用のため
+   * NCMBのインスタンスのローカルストレージのプリフィクスprefixを取得。
    * @param {String} path 相対的の拡張子のパス。nullかundefinedの場合、空文字列として扱う。
    *     
    * @return {String} キーのフルの名前。
@@ -1797,7 +1797,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     var signature = "";
     var _applicationKey = NCMB.applicationKey;
     var _timestamp = timestamp;
-    // var _clientKey = NCMB.clientKey;
+    var _clientKey = NCMB.clientKey;
 
     var _method = method;
     var _url = encodeURI(url);
@@ -1858,13 +1858,10 @@ var CryptoJS = CryptoJS || function (h, i) {
 	null,
 	null,
 	"POST",
-	"/sign",
+	HEROKU_URL + "/sign",
 	{forEncodeString: forEncodeString},
 	"",
-	"")
-    // var hash = CryptoJS.HmacSHA256(forEncodeString, _clientKey);
-    // var signature = CryptoJS.enc.Base64.stringify(hash);                 
-    // return signature;
+	"");
   }
 
   // AJAX リクエストを処理するための関数 
@@ -1890,7 +1887,6 @@ var CryptoJS = CryptoJS || function (h, i) {
             if (xhr.responseText) {
               if (route != "files" || method != "GET" ||  className == null) { // check the situtation ファイル収得
                 response = JSON.parse(xhr.responseText);
-                //response = xhr.responseText; //
               } else {
                 response = xhr.responseText;
               }
@@ -1910,15 +1906,17 @@ var CryptoJS = CryptoJS || function (h, i) {
       }
     };
 
+
     xhr.open(method, url, true); 
     //get file situation
     if (route == "files" && method == "GET" &&  className != null) {
        xhr.overrideMimeType('text/plain; charset=x-user-defined');
-    }    
-    xhr.setRequestHeader("X-NCMB-Application-Key", NCMB.applicationKey );
-    xhr.setRequestHeader("X-NCMB-Timestamp", timestamp);
-    xhr.setRequestHeader("X-NCMB-Signature", signature);  
-    //2013/11/08 Session token
+    }
+    if (url.match(/https:\/\/mb\.api\.cloud\.nifty\.com/)) {
+      xhr.setRequestHeader("X-NCMB-Application-Key", NCMB.applicationKey );
+      xhr.setRequestHeader("X-NCMB-Timestamp", timestamp);
+      xhr.setRequestHeader("X-NCMB-Signature", signature);  
+    }
     //check if session token is exist or not
     var _requestCurrentUser = NCMB.User.current();
     if(_requestCurrentUser) {
@@ -1928,7 +1926,6 @@ var CryptoJS = CryptoJS || function (h, i) {
     }      
 
     //Fileの場合の設定
-    //if( route == "files" && method == "POST"  && data.file) {
     if( route == "files" && method == "POST" ) {
       var formData = new FormData();
       formData.append("file", data.file);
@@ -1936,11 +1933,13 @@ var CryptoJS = CryptoJS || function (h, i) {
       xhr.send(formData);
     } else {
       //そのほかの場合
-      data = JSON.stringify(data);
+      data = JSON.stringify(data); 
       xhr.setRequestHeader("Content-Type", "application/json");  // avoid pre-flight. 
       xhr.send(data);
     }
-    return promise._thenRunCallbacks(options);
+
+    return promise;
+    // return promise._thenRunCallbacks(options);
   };
 
   // A self-propagating extend function.
@@ -2136,31 +2135,37 @@ var CryptoJS = CryptoJS || function (h, i) {
     var timestamp = timestring;
 
     //create signature, pass to _ajax()
-   signature = "";
-   return NCMB._createSignature(route, className, objectId, url, method, timestamp)
-   .then(function(data){
-     signature = data.signature;
-     var data = dataObject;
-     return NCMB._ajax(route, className, method, url, data, signature, timestamp).then(null,
-       function(response) {
-         // Transform the error into an instance of NCMB.Error by trying to NCMB
-         // the error string as JSON.
-         var error;
-        if (response && response.responseText) {
-          try {
-            var errorJSON = JSON.parse(response.responseText);
-            if (errorJSON) {
-              error = new NCMB.Error(errorJSON.code, errorJSON.error);
-            }
-          } catch (e) {
-            // If we fail to NCMB the error text, that's okay.
+    
+    return NCMB._createSignature(route, className, objectId, url, method, timestamp).then(function(response){
+    var signature = response.signature;
+    return NCMB._ajax(route, className, method, url, dataObject, signature, timestamp).then(null,
+      function(response) {
+      // Transform the error into an instance of NCMB.Error by trying to NCMB
+      // the error string as JSON.
+      var error;
+      if (response && response.responseText) {
+        try {
+          var errorJSON = JSON.parse(response.responseText);
+          if (errorJSON) {
+            error = new NCMB.Error(errorJSON.code, errorJSON.error);
           }
+        } catch (e) {
+          // If we fail to NCMB the error text, that's okay.
         }
-        error = error || new NCMB.Error(-1, response.responseText);
-        // By explicitly returning a rejected Promise, this will work with
-        // either jQuery or Promises/A semantics.
-        return NCMB.Promise.error(error);
-      });
+      }
+      error = error || new NCMB.Error(-1, response.responseText); 
+
+      //Authentication header error
+      var _requestCurrentUser = NCMB.User.current();
+      if (error.code == "E401001") {
+        if (_requestCurrentUser._sessionToken != null)
+          NCMB.User.logOut();
+      }
+
+      // By explicitly returning a rejected Promise, this will work with
+      // either jQuery or Promises/A semantics.
+      return NCMB.Promise.error(error);
+    });
     });
   };
 
@@ -2202,12 +2207,9 @@ var CryptoJS = CryptoJS || function (h, i) {
       return value.toJSON();
     }
 
-    //add on 2013/11/27 for GeoPointer
-    //From here
     if (value instanceof NCMB.GeoPoint) {
       return value.toJSON();
     }
-    //to here
 
     if (_.isDate(value)) {
       return { "__type": "Date", "iso": value.toJSON() };
@@ -2295,15 +2297,12 @@ var CryptoJS = CryptoJS || function (h, i) {
       return NCMB._NCMBDate(value.iso);
     }
 
-    //add on 2013/11/27 for GeoPointer
-    //From here
     if (value.__type === "GeoPoint") {
       return new NCMB.GeoPoint({
         latitude: value.latitude,
         longitude: value.longitude
       });
     }
-    //to here
 
     if (key === "ACL") {
       if (value instanceof NCMB.ACL) {
@@ -2458,7 +2457,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
 
     /**
-     * 新しい失敗Promiseと渡されたErrorを返却する。
+     * 失敗Promiseと渡されたErrorを返却する。
      * @return {NCMB.Promise} 新しいプロミス
      */
     error: function() {
@@ -2468,7 +2467,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
 
     /**
-    　* すべてpromisesが成功に実行されたら、
+    　* すべてpromisesが成功したら、
      * 新しいPromiseを返す。実行したPromisesの中にエラーが発生したら、
      * 最後に実行したPromiseのエラーと共に、失敗Promiseとして返す。
      * すべて成功した場合、実行した結果の配列と共に成功Promiseとして返す。
@@ -2748,281 +2747,174 @@ var CryptoJS = CryptoJS || function (h, i) {
     OTHER_CAUSE: -1,
 
     /**
-     * サーバー問題を発生する関連のエラーコード。
+     * E400000　不正なリクエストです。
      * @constant
      */
-    INTERNAL_SERVER_ERROR: 1,
+    BAD_REQUEST: "E400000",
 
     /**
-     * NCMBサーバーの接続問題のエラーコード。
+     * E400001　JSON形式不正です。
      * @constant
      */
-    CONNECTION_FAILED: 100,
+    INVALID_JSON: "E400001",
 
     /**
-     * 指定オブジェクトが存在しないエラーコード。
+     * E400002　型が不正です。
      * @constant
      */
-    OBJECT_NOT_FOUND: 101,
+    INVALID_TYPE: "E400002",
 
     /**
-     * オブジェクトか配列にマッチするためのクエリにデータータイプがサポートされていないエラーコード。
+     * E400003　必須項目で未入力です。
      * @constant
      */
-    INVALID_QUERY: 102,
+    REQUIRED: "E400003",
 
     /**
-     * クラス名が存在しないエラーコード。文字か数字かアンダスコアで始まる文字列が許可される。
+     * E400004　フォーマットが不正です。
      * @constant
      */
-    INVALID_CLASS_NAME: 103,
+    INVALID_FORMAT: "E400004",
 
     /**
-     * 指定オブジェクトIDが存在しないエラーコード。
+     * E400005　有効な値ではありません。
      * @constant
      */
-    MISSING_OBJECT_ID: 104,
+    INVALID_VALUE: "E400005",
 
     /**
-     * キーが存在しないエラーコード。文字か数字かアンダスコアで始まる文字列が許可される。
+     * E400006　存在しない値です。
      * @constant
      */
-    INVALID_KEY_NAME: 105,
+    NOT_EXIST: "E400006",
 
     /**
-     * 間違うポインターのエラーコード。
+     * E400008　相関関係でエラーです。
      * @constant
      */
-    INVALID_POINTER: 106,
+    RELATION_ERROR: "E400008",
 
     /**
-     * JSONデーター形式にエラーが発生するエラーコード。
+     * E400009　指定桁数を超えています。
      * @constant
      */
-    INVALID_JSON: 107,
+    INVALID_SIZE: "E400009",
 
     /**
-     * テスト範囲でアクセスできない機能のエラーコード。
+     * E401001　Header不正による認証エラーです。
      * @constant
      */
-    COMMAND_UNAVAILABLE: 108,
+    INCORRECT_HEADER: "E401001",
 
     /**
-     * NCMBがまだ初期化されていないエラーコード。NCMB.initializeを実行する必要がある。
+     * E401002　ID/Pass認証エラーです。
      * @constant
      */
-    NOT_INITIALIZED: 109,
+    INCORRECT_PASSWORD: "E401002",
 
     /**
-     * フィールドのタイプが適切ではないエラーコード。
+     * E401003　OAuth認証エラーです。
      * @constant
      */
-    INCORRECT_TYPE: 111,
+    OAUTH_ERROR: "E401003",
 
     /**
-     * 許可しないチャネル名のエラーコード。
+     * E403001　ＡＣＬによるアクセス権がありません。
      * @constant
      */
-    INVALID_CHANNEL_NAME: 112,
+    INVALID_ACL: "E403001",
 
     /**
-     * プッシュが未設定のエラーコード。
+     * E403002　コラボレータ/管理者（サポート）権限がありません。
      * @constant
      */
-    PUSH_MISCONFIGURED: 115,
+    INVALID_OPERATION: "E403002",
 
     /**
-     * オブジェクトが大きすぎるのエラーコード。
+     * E403003　禁止されているオペレーションです。
      * @constant
      */
-    OBJECT_TOO_LARGE: 116,
+    FORBIDDEN_OPERATION: "E403003",
 
     /**
-     * ユーザーに許可しない操作のエラーコード。
+     * E403005　設定不可の項目です。
      * @constant
      */
-    OPERATION_FORBIDDEN: 119,
+    INVALID_SETTING: "E403005",
 
     /**
-     * キャッシュに結果が見つけていないエラーコード。
+     * E403006　GeoPoint型フィールドに対してGeoPoint型以外のデータ登録/更新を実施（逆も含む）不正なGeoPoint検索を実施エラーです。
      * @constant
      */
-    CACHE_MISS: 120,
+    INVALID_GEOPOINT: "E403006",
 
     /**
-     * 許可しないキーが使用された時のエラーコード。
-     * JSONObject.
+     * E405001　リクエストURI/メソッドが不許可です。
      * @constant
      */
-    INVALID_NESTED_KEY: 121,
+    INVALID_METHOD: "E405001",
 
     /**
-     * ファイル名は適切ではない時のエラーコード。
-     * 文字か数字かアンダスコアで始まる文字列が許可され、キャラクター数は1~128である。
+     * E409001　重複エラーです。
      * @constant
      */
-    INVALID_FILE_NAME: 122,
+    DUPPLICATION_ERROR: "E409001",
 
     /**
-     * 許可しないACLのエラーコード。
+     * E413001　ファイルサイズ上限チェック  エラーです。
      * @constant
      */
-    INVALID_ACL: 123,
+    FILE_SIZE_ERROR: "E413001",
 
     /**
-     * サーバーリクエストのタイムアウトエラーコード。
+     * E413002　MongoDBドキュメントのサイズ上限エラーです。
      * @constant
      */
-    TIMEOUT: 124,
+    DOCUMENT_SIZE_ERROR: "E413002",
 
     /**
-     * 許可しないメールアドレスのエラーコード。
+     * E413003　複数オブジェクト一括操作の上限エラーです。
      * @constant
      */
-    INVALID_EMAIL_ADDRESS: 125,
+    REQUEST_LIMIT_ERROR: "E413003",
 
     /**
-     * コンテンツタイプが不足のエラーコード。
+     * E415001　サポート対象外のContentTypeの指定エラーです。
      * @constant
      */
-    MISSING_CONTENT_TYPE: 126,
+    UNSUPPORT_MEDIA: "E415001",
 
     /**
-     * コンテンツの長さが不足のエラーコード。
+     * E429001　使用制限（APIコール数、PUSH通知数、ストレージ容量）超過エラーです
      * @constant
      */
-    MISSING_CONTENT_LENGTH: 127,
+    REQUEST_OVERLOAD: "E429001",    
 
     /**
-     * コンテンツの長さが許可しないのエラーコード。
+     * E500001　内部エラーです。
      * @constant
      */
-    INVALID_CONTENT_LENGTH: 128,
+    SYSTEM_ERROR: "E500001",
 
     /**
-     * ファイルが大きすぎのエラーコード。
+     * E502001　ストレージエラーです。NIFTY Cloud ストレージでエラーが発生した場合のエラーです。
      * @constant
      */
-    FILE_TOO_LARGE: 129,
+    STORAGE_ERROR: "E502001",
 
     /**
-     * ファイルを保存するのエラーコード。
+     * E502002　メール送信エラーです。
      * @constant
      */
-    FILE_SAVE_ERROR: 130,
+    MAIL_ERROR: "E502002",
 
     /**
-     * ファイルを削除するのエラーコード。
+     * E502003　DBエラーです。
      * @constant
      */
-    FILE_DELETE_ERROR: 153,
+    DATABASE_ERROR: "E502003",
 
-    /**
-     * ユニックのフィールドにわたされた値が存在するのエラーコード。
-     * @constant
-     */
-    DUPLICATE_VALUE: 137,
-
-    /**
-     * ロール名が許可しないのエラーコード。
-     * @constant
-     */
-    INVALID_ROLE_NAME: 139,
-
-    /**
-     * 定量に超えたのエラーコード。アップグレードが必要である。
-     * @constant
-     */
-    EXCEEDED_QUOTA: 140,
-
-    /**
-     * イメージデーターが許可されないのエラーコード。
-     * @constant
-     */
-    INVALID_IMAGE_DATA: 150,
-
-    /**
-     * ファイルを保存する時のエラーコード。
-     * @constant
-     */
-    UNSAVED_FILE_ERROR: 151,
-
-    /**
-     * プッシュの時間関連のエラーコード。
-     */
-    INVALID_PUSH_TIME_ERROR: 152,
-
-    /**
-     * ユーザー名が不足のエラーコード。
-     * @constant
-     */
-    USERNAME_MISSING: 200,
-
-    /**
-     * パスワードが不足のエラーコード。
-     * @constant
-     */
-    PASSWORD_MISSING: 201,
-
-    /**
-     * ユーザー名がすでに存在しているのエラーコード。
-     * @constant
-     */
-    USERNAME_TAKEN: 202,
-
-    /**
-     * メールアドレスがすでに存在するのエラーコード。
-     * @constant
-     */
-    EMAIL_TAKEN: 203,
-
-    /**
-     * メールアドレスが不足のエラーコード。指定が必要である。
-     * @constant
-     */
-    EMAIL_MISSING: 204,
-
-    /**
-     * Error code indicating that メールアドレスが見つからないのエラーコード。
-     * @constant
-     */
-    EMAIL_NOT_FOUND: 205,
-
-    /**
-     * 許可するセッションのエラーコード。
-     * @constant
-     */
-    SESSION_MISSING: 206,
-
-    /**
-     * サインアップしない、作成されたユーザーのエラーコード。
-     * @constant
-     */
-    MUST_CREATE_USER_THROUGH_SIGNUP: 207,
-
-    /**
-     * リンクしようアカウントがリンクされたのエラーコード。
-     * @constant
-     */
-    ACCOUNT_ALREADY_LINKED: 208,
-
-    /**
-     * アカウントIDが不足のためリンクができないのエラーコード。
-     * @constant
-     */
-    LINKED_ID_MISSING: 250,
-
-    /**
-     * リンクされたアカウントに許可しないセッションのエラーコード。
-     * @constant
-     */
-    INVALID_LINKED_SESSION: 251,
-
-    /**
-     * リンクするサービスがサポートされていないのエラーコード。
-     * @constant
-     */
-    UNSUPPORTED_SERVICE: 252
+    
   });
 }(this));
 
@@ -3457,7 +3349,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
 
     /**
-     * objectId, createdAtのような特別なフィールドを取だし、
+     * objectId, createdAtのような特別なフィールドを取りだし、
      * 現在のオブジェクトに直接追加する。
      * @param attrs - このNCMB.Objectのデータ辞書
      */
@@ -4487,7 +4379,7 @@ var CryptoJS = CryptoJS || function (h, i) {
               var json = object._getSaveJSON();
               var method = "POST";
 
-              var path = "/2013-09-01/classes/" + object.className; //★パス！
+              var path = "/2013-09-01/classes/" + object.className; 
               if (object.id) {
                 path = path + "/" + object.id;
                 method = "PUT";
@@ -5418,7 +5310,7 @@ var CryptoJS = CryptoJS || function (h, i) {
         return;
       }
       var dataURL = reader.result;
-      // Guess the content type from the extension i//f we need to.
+      // Guess the content type from the extension if we need to.
       var extension = /\.([^.]*)$/.exec(file.name);
       if (extension) {
         extension = extension[1].toLowerCase();
@@ -6208,6 +6100,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
       var request = NCMB._request("classes", this.className, null, "GET",
                                    this.toJSON());
+
       return request.then(function(response) {
         return _.map(response.results, function(json) {
           var obj;
@@ -6455,6 +6348,7 @@ var CryptoJS = CryptoJS || function (h, i) {
      * @param {String} key マッチしないオブジェクトのキー名
      * @param {NCMB.Query} query マッチしないクエリ
      * @return {NCMB.Query} チェーンにするクエリを返却する。
+     * @deprecated 将来的に廃止予定
      */
     doesNotMatchQuery: function(key, query) {
       var queryJSON = query.toJSON();
@@ -6487,6 +6381,7 @@ var CryptoJS = CryptoJS || function (h, i) {
      * @param {String} queryKey 再マッチするためクエリから取得したオブジェクトのキー名
      * @param {NCMB.Query} query 実行するクエリ
      * @return {NCMB.Query} チェーンにするクエリを返却する。
+     * @deprecated 将来的に廃止予定
      */
     doesNotMatchKeyInQuery: function(key, queryKey, query) {
       var queryJSON = query.toJSON();
@@ -6967,7 +6862,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     /**
      * 新しいユーザーをサインアップする。NCMB.Usersのsave関数を利用するより、sign up関数を利用した方が良い。
      * サーバーに新しいNCMB.Userを作成し、サーバーに保存し、
-     * ロカールでセッションを保持し、<code>current</code>で、現在のユーザーをアクセスできる。
+     * ローカルでセッションを保持し、<code>current</code>で、現在のユーザーをアクセスできる。
      *
      * <p>サインアップする前、ユーザー名とパスワードをセットする必要がある。</p>
      *
@@ -7015,7 +6910,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
 
     /**
-     * NCMB.Userにログインする。成功する時、ロカールストレージにセッションが保存され、
+     * NCMB.Userにログインする。成功する時、ローカルストレージにセッションが保存され、
      * 現在ログインしているユーザーのデーターが<code>current</code>にてアクセス可能である。
      *
      * <p>ログインする前に、ユーザー名とパスワードを設定する必要がある。</p>
@@ -7159,8 +7054,8 @@ var CryptoJS = CryptoJS || function (h, i) {
 
     /**
      * 新しいユーザーをサインアップする。NCMB.Usersのsave関数を利用するより、sign up関数を利用した方が良い。
-     *  サーバーに新しいNCMB.Userを作成し、サーバーに保存し、ロカールでセッションを保持し、
-     *  <code>current</code>で、現在のユーザーをアクセスできる。
+     *  サーバーに新しいNCMB.Userを作成し、サーバーに保存し、ローカルでセッションを保持し、
+     *  <code>current</code>で、現在のユーザーにアクセスできる。
      *
      * <p>完了した後、options.successかoptions.errorを実行させる。</p>
      *
@@ -7181,7 +7076,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
 
     /**
-     * NCMB.Userにログインする。成功する時、ロカールストレージにセッションが保存され、
+     * NCMB.Userにログインする。成功する時、ローカルストレージにセッションが保存され、
      * 現在ログインしているユーザーのデーターが<code>current</code>にてアクセス可能である。
      *
      * <p>完了した後、options.successかoptions.errorを実行させる。</p>
@@ -7200,7 +7095,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
     /**
      * 現在ログイン中のユーザーセッションから、ログアウトする。　
-     * ロカールからセッションを削除し、連携サービスをログアウトする。ログアウトが完了すると、
+     * ローカルからセッションを削除し、連携サービスをログアウトする。ログアウトが完了すると、
      * <code>current</code>の結果は<code>null</code>を返却する。
      */
     logOut: function() {
@@ -7220,7 +7115,7 @@ var CryptoJS = CryptoJS || function (h, i) {
      *
      * <p>完了する時、options.successかoptions.errorを実行させる。</p>
      *
-     * @param {String} email パスワードをリクエストユーザーのメールアドレス。
+     * @param {String} email パスワードのリセットリクエストを行うユーザーのメールアドレス。
      * @param {Object} options Backbone対応のオプションオブジェクト
      */
     requestPasswordReset: function(email, options) {
@@ -7232,7 +7127,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
     /**
      *　現在ログイン中のユーザー NCMB.Userを取得する。
-     * メモリかロカールストレージから適切なセッション情報を返却する。
+     * メモリかローカルストレージから適切なセッション情報を返却する。
      * @return {NCMB.Object} 現在ログインしているNCMB.User
      */
     current: function() {
@@ -7318,7 +7213,6 @@ var CryptoJS = CryptoJS || function (h, i) {
   var NCMB = root.NCMB;
   var _ = NCMB._;
 
-
   /**
    * 匿名ユーザーのために、利用する機能を提供するクラスである。
    * @namespace
@@ -7327,7 +7221,7 @@ var CryptoJS = CryptoJS || function (h, i) {
   NCMB.AnonymousUtils = {
 
     /**
-     * ユーザーのアカウントは匿名とリンクするかどうか判断し、取得する。
+     * ユーザーのアカウントが匿名とリンクするかどうか判断し、取得する。
      * 
      * @param {NCMB.User}　user　チェックするユーザー。ユーザーが現在のデバイスにログインする必要がある。
      * @return {Boolean}  ユーザーアカウントは匿名アカウントとリンクしているかどうか判断結果。そうすると、<code>true</code>を返却する。
@@ -7811,7 +7705,7 @@ var CryptoJS = CryptoJS || function (h, i) {
      * @param {Object} data -  プッシュ通知のデーター。　有効なフィールドは以下のようになっている:
      *   <ol>
      *     <li>deliveryTime - プッシュするタイミングのデートオブジェクト</li>
-     *     <li>immediateDeliveryFlag - 即自配信</li>
+     *     <li>immediateDeliveryFlag - 即時配信</li>
      *     <li>target - ターゲット</li>
      *     <li>searchCondition -  NCMB.Installation検索条件設定にマッチするクエリNCMB.Query</li>
      *     <li>message - プッシュで送信するデーター</li>
@@ -7976,7 +7870,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     /**
      *　Facebook認証を利用し、ユーザーログインを行う。このメソッドはFacebook SDKを継承し、
      * ユーザー認証を行い、 認証が完了したあと、
-     * 自動的にNCMB.Userとしてログインを行う。ユーザーは新しい場合、新規ユーザー登録を行う。
+     * 自動的にNCMB.Userとしてログインを行う。新規ユーザーの場合には、新規ユーザー登録を行う。
      * 
      * @param {String, Object} permissions Facebookにログインするため、
      * 必要なパーミションである。複数の場合、','で区別する。　
@@ -8050,10 +7944,10 @@ var CryptoJS = CryptoJS || function (h, i) {
    * 既存要素が提供されていない場合、DOM以外に新しく初期化された要素を作成するクラス。
    * @class
    *
-   * <p>ユーザーのために便利にするため、Backbone互換のViewを提供するクラスである。
+   * <p>ユーザーの利便性を向上させるため、Backbone互換のViewを提供するクラスである。
    * このクラスを利用するため、jQueryかjqueryの$に互換ライブラリーを入れ含めるか参照することが必要である。
    * 詳しくは<a href="http://documentcloud.github.com/backbone/#View">Backbone
-   * documentation</a>に参照してください。</p>
+   * documentation</a>を参照してください。</p>
    * <p><strong><em>SDKクライアントで利用するのみ。</em></strong></p>
    */
   NCMB.View = function(options) {
@@ -8101,7 +7995,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
 
     /**
-     * DOMからビューを削除する。デフォルトはビューが表示されないこと。
+     * DOMからビューを削除する。デフォルトはビューが表示されない。
      * そのため、このメソッドを呼び出す時、no-opとして実行する可能性がある。
      */
     remove: function() {
@@ -8153,7 +8047,7 @@ var CryptoJS = CryptoJS || function (h, i) {
      *     }
      * </pre>
      * の組がある. コールバックはビューにバインドさせ、`this`のセットを適切に利用する。
-     * イベントの委任の利用する方がお勧めする。
+     *　イベントの委任を利用する方にお勧めする。
      * `this.el`にイベントをバインドするセレクターを除く。
      * 委任可能なイベントしか有効である。
      * IEの場合、次のイベントは不可である。
@@ -8259,7 +8153,7 @@ var CryptoJS = CryptoJS || function (h, i) {
    * @class
    *
    * <p>Backbone.Routerと互換し、ユーザーが使いやすくするために提供するクラスである。
-   * 詳しくは、以下のURLに参照してください。
+   * 詳しくは、以下のURLを参照してください。
    * <a href="http://documentcloud.github.com/backbone/#Router">Backbone
    * documentation</a>.</p>
    * <p><strong><em>クライアントSDKのみ提供する。</em></strong></p>
@@ -8285,7 +8179,7 @@ var CryptoJS = CryptoJS || function (h, i) {
 
     /**
      * デフォルトは空初期化関数である。　
-     * ユーザーは自分の好みロジックで初期化関数をオバーライドする。
+     * ユーザーは任意のロジックで初期化関数をオーバーライドする。
      */
     initialize: function(){},
 
@@ -8382,7 +8276,7 @@ var CryptoJS = CryptoJS || function (h, i) {
   var _ = NCMB._;
 
   /**
-   *　グロバールルーターとして担当し、ハッシュ変更のイベントやpushStateを操作し、
+   *　グローバルルーターとして担当し、ハッシュ変更のイベントやpushStateを操作し、
    * 適切なルートにマッチし、コールバックを発火させる。
    * 新しく作成するより、 <code>NCMB.history</code>に参照する方法の方がお勧めする。
    * そうすると、Routerを利用する時自動的に作成される。
@@ -8391,7 +8285,7 @@ var CryptoJS = CryptoJS || function (h, i) {
    * <p>ユーザーのためにBackbone互換のRouterを提供するクラスである。
    * このクラスを利用するため、jQueryかjqueryの$に互換ライブラリーを含めるか参照することが必要である。
    * 詳しくは<a href="http://documentcloud.github.com/backbone/#View">Backbone
-   * documentation</a>.</p>に参照してください。
+   * documentation</a>.</p>を参照してください。
    * <p><strong><em>SDKクライアントのみ利用する。</em></strong></p>
    */
   NCMB.History = function() {
@@ -8523,7 +8417,7 @@ var CryptoJS = CryptoJS || function (h, i) {
     },
     
     /**
-     * 一時的にNCMB.Historyを無効にする。リアルのアプリケーションでは必要ではないが、ユニットテストを行う時に必要可能性がある。
+     * 一時的にNCMB.Historyを無効にする。リアルのアプリケーションでは必要ではないが、ユニットテスト時に利用する可能性がある。
      */
     stop: function() {
       NCMB.$(window).unbind('popstate', this.checkUrl)
