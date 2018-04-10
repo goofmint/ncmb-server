@@ -2,6 +2,8 @@
 
 ニフティクラウド mobile backendのJavaScript SDKでクライアントキーを隠すためのサーバです。
 
+こちらは古いので [https://github.com/NCMBMania/ncmb_server_v2](https://github.com/NCMBMania/ncmb_server_v2) をご利用ください。
+
 ## Heroku button
 
 [NCMBの管理画面](https://console.mb.cloud.nifty.com/)にてアプリを作成、クライアントキーを取得してください。その後、以下のボタンからHerokuアプリを作成してください。
